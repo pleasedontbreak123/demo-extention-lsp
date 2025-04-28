@@ -1,0 +1,43 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "运行扩展",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/out/**/*.js"
+            ],
+            "preLaunchTask": "${defaultBuildTask}",
+            "sourceMaps": true,
+            "stopOnEntry": false
+        },
+        {
+            "name": "扩展测试",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}",
+                "--extensionTestsPath=${workspaceFolder}/out/test"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/out/test/**/*.js"
+            ],
+            "preLaunchTask": "${defaultBuildTask}"
+        },
+        {
+            "name": "调试 LSP 服务器",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/lsp-server-demo/target/debug/lsp-server-demo",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "sourceMap": {
+                "/rustc/": "${workspaceFolder}/lsp-server-demo/target/debug/deps"
+            }
+        }
+    ]
+}

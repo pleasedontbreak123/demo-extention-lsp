@@ -1,0 +1,10 @@
+{
+    "languageserver": {
+      "rust-lsp": {
+        "command": ["cargo", "run"],
+        "args": [],
+        "filetypes": ["txt"],
+     
+      }
+    }
+  }
