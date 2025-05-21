@@ -10,16 +10,24 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:plaintext"
+    "onLanguage:plaintext",
+    "onLanguage:cir"
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "demo-ext.helloWorld",
-        "title": "Hello World"
-      }
-    ]
+      "languages": [
+    {
+      "id": "cir",
+      "extensions": [".cir"],
+      "aliases": ["Circuit File"]
+    }
+  ],
+  "commands": [
+    {
+      "command": "demo-ext.helloWorld",
+      "title": "Hello World"
+    }
+  ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

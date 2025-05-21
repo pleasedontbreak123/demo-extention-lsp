@@ -1,7 +1,10 @@
 use std::collections::HashMap;
+use spice_parser_core::ast::*;
 
 use lsp_types::*;
 
+
+#[derive(Serialize, Deserialize, Debug)]
 struct SymbolInfo {
     name: String,
     uri: Url,           // 所在文件
@@ -10,6 +13,7 @@ struct SymbolInfo {
 }
 type SymbolTable = HashMap<String, Vec<SymbolInfo>>; // 一个符号可能有多个定义（重载等）
 
+static GLOBAL_ASTS: Lazy<Mutex<HashMap<String, Result<Program>>>> = Lazy::new(|| Mutex::new(HashMap::new())); //> = Mutex::new(HashMap::new());
 
 fn extract_word(line_text: &str, location: usize) -> Option<String>{
     let chars: Vec<char> = line_text.chars().collect();
@@ -32,7 +36,20 @@ fn extract_word(line_text: &str, location: usize) -> Option<String>{
     }
 }
 
-fn handle_goto_definition() -> Option<Location>{}
+
+fn build_symbol_table(ast: &AstNode, file_uri: Url) -> SymbolTable {
+    let mut table = SymbolTable::new(); //动态加载再说吧
+    
+    table
+}
+
+
+
+
+
+fn handle_goto_definition() -> Option<Location>{
+
+}
 
 #[cfg(test)]
 mod tests {
