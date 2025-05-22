@@ -136,7 +136,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    log::info!("LSP服务器正在关闭...");
+    //log::info!("LSP服务器正在关闭...");
     io_threads.join()?;
     log::info!("LSP服务器已关闭");
     Ok(())
