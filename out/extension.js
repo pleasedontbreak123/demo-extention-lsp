@@ -147,7 +147,7 @@ function activate(context) {
     };
     // 配置客户端，支持的文件类型
     let clientOptions = {
-        documentSelector: [{ scheme: 'file', language: 'plaintext' },{ scheme: "file", language: "cir" }],
+        documentSelector: [{ scheme: 'file', language: 'plaintext' }],
         traceOutputChannel: traceChannel, // LSP协议通讯内容专用通道
         middleware: {
             sendRequest: async (type, params, token, next) => {

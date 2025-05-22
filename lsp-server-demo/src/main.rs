@@ -27,6 +27,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     log::info!("收到初始化请求: {}", serde_json::to_string_pretty(&params).unwrap());
     let _params: InitializeParams = serde_json::from_value(params)?;
 
+    handler::update(_params.root_uri.unwrap());
+    log::info!("构建符号表");
+
     let capabilities = ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),//文档同步
 
@@ -71,6 +74,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     connection.initialize_finish(id, serde_json::to_value(result)?)?;
     log::info!("初始化完成");
+   
 
     // 主事件循环
     for msg in &connection.receiver {
@@ -112,7 +116,25 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 let response = lsp_server::Response::new_ok(id, result);
                                 log::info!("发送响应: {}", serde_json::to_string_pretty(&response)?);
                                 response
-                            }
+                            },
+                            "textDocument/definition" => {
+                                let params: TextDocumentPositionParams = serde_json::from_value(params.clone())?;
+
+                                handler::update(params.text_document.uri.clone());
+                                // 调用跳转函数
+                                let result = handler::handle_goto_definition(params);
+
+                                let response = match result {
+                                    Some(location) => lsp_server::Response::new_ok(id.clone(), location),
+                                    None => lsp_server::Response::new_ok(id.clone(), serde_json::Value::Null),
+                                };
+                                log::info!("发送响应: {}", serde_json::to_string_pretty(&response)?);
+                                response
+
+
+                            },
+
+                           
                             _ => {
                                 let code = lsp_server::ErrorCode::MethodNotFound as i32;
                                 let message = format!("Unhandled method: {method}");
