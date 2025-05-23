@@ -276,23 +276,23 @@ fn build_symbol_table(ast: &ast::Program, file_uri: Url, content: &str) {
             }
         }
     }
-    log::info!("所有指令处理完成，准备更新全局符号表");
+    
     
     // 打印完整的符号表内容
-    log::info!("当前符号表内容:");
-    for (symbol_name, symbol_infos) in &new_table {
-        log::info!("符号名: {}", symbol_name);
-        for (index, info) in symbol_infos.iter().enumerate() {
-            log::info!("  定义 #{}:", index + 1);
-            log::info!("    名称: {}", info.name);
-            log::info!("    类型: {:?}", info.kind);
-            log::info!("    位置: 行={}, 列={} 到 行={}, 列={}", 
-                info.range.start.line,
-                info.range.start.character,
-                info.range.end.line,
-                info.range.end.character);
-        }
-    }
+    // log::info!("当前符号表内容:");
+    // for (symbol_name, symbol_infos) in &new_table {
+    //     log::info!("符号名: {}", symbol_name);
+    //     for (index, info) in symbol_infos.iter().enumerate() {
+    //         log::info!("  定义 #{}:", index + 1);
+    //         log::info!("    名称: {}", info.name);
+    //         log::info!("    类型: {:?}", info.kind);
+    //         log::info!("    位置: 行={}, 列={} 到 行={}, 列={}", 
+    //             info.range.start.line,
+    //             info.range.start.character,
+    //             info.range.end.line,
+    //             info.range.end.character);
+    //     }
+    // }
             
     // 最后一次性更新全局符号表
     {
