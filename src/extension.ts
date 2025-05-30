@@ -119,7 +119,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     // 配置客户端，支持的文件类型
     let clientOptions: LanguageClientOptions = {
-        documentSelector: [{ scheme: 'file', language: 'plaintext' }],
+        // 为了调试方便保留两个文件支持
+        documentSelector: [
+            { scheme: 'file', language: 'plaintext' },
+            { scheme: 'file', language: 'cir' }
+        ],
         traceOutputChannel: traceChannel, // LSP协议通讯内容专用通道
         middleware: {
             sendRequest: async (type: any, params: any, token: any, next: any) => {

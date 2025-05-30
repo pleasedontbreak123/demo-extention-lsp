@@ -370,7 +370,7 @@ pub fn update(file_uri: Url) {
     log::info!("符号表构建完成");
 }
 
-pub fn handle_goto_definition(params: TextDocumentPositionParams) -> Option<Location> {
+pub fn handle_goto_definition(params: TextDocumentPositionParams) -> Option<Vec<Location>> {
     log::info!("开始处理跳转定义请求");
     
     // 先更新文件
@@ -410,15 +410,32 @@ pub fn handle_goto_definition(params: TextDocumentPositionParams) -> Option<Loca
     };
 
     // 从符号表中查找定义
-    let location = {
+    // let location:Option<Vec<Location>> = {
+    //     let symbol_table = GLOBAL_SYMBOLTABLE.lock().unwrap();
+    //     match symbol_table.get(&symbol_name) {
+    //         Some(defs) => {
+    //             log::info!("查询正常，找到定义: {:?}", defs);
+    //             defs.iter().map(|def| Location {
+    //                 uri: def.uri.clone(),
+    //                 range: def.range,
+    //             }).collect()
+    //         },
+    //         None => {
+    //             log::error!("查找符号表失败，符号名: {}", symbol_name);
+    //             None
+    //         },
+    //     }
+    // };
+
+    let locations: Option<Vec<Location>> = {
         let symbol_table = GLOBAL_SYMBOLTABLE.lock().unwrap();
         match symbol_table.get(&symbol_name) {
             Some(defs) => {
                 log::info!("查询正常，找到定义: {:?}", defs);
-                defs.first().map(|def| Location {
+                Some(defs.iter().map(|def| Location {
                     uri: def.uri.clone(),
                     range: def.range,
-                })
+                }).collect())
             },
             None => {
                 log::error!("查找符号表失败，符号名: {}", symbol_name);
@@ -427,7 +444,7 @@ pub fn handle_goto_definition(params: TextDocumentPositionParams) -> Option<Loca
         }
     };
 
-    location
+    locations
 }
 
 #[cfg(test)]

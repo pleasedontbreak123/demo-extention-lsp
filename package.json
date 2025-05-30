@@ -15,19 +15,24 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-      "languages": [
-    {
-      "id": "cir",
-      "extensions": [".cir"],
-      "aliases": ["Circuit File"]
-    }
-  ],
-  "commands": [
-    {
-      "command": "demo-ext.helloWorld",
-      "title": "Hello World"
-    }
-  ]
+    "languages": [
+      {
+        "id": "cir",
+        "extensions": [".cir"],
+        "aliases": ["Circuit File"]
+      },
+      {
+        "id": "plaintext",
+        "extensions": [".txt"],
+        "aliases": ["Text File"]
+      }
+    ],
+    "commands": [
+      {
+        "command": "demo-ext.helloWorld",
+        "title": "Hello World"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
