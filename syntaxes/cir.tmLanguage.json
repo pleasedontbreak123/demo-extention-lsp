@@ -1,0 +1,55 @@
+{
+  "name": "Circuit File",
+  "scopeName": "source.cir",
+  "fileTypes": ["cir"],
+  "patterns": [
+    {
+      "match": "^\\s*#.*$",
+      "name": "comment"
+    },
+    {
+      "match": "\\b(circuit|gate|module|input|output|wire|reg)\\b",
+      "name": "keyword"
+    },
+    {
+      "match": "\\b(and|or|not|nand|nor|xor|xnor)\\b",
+      "name": "keyword.operator"
+    },
+    {
+      "match": "\\b(if|else|while|for|case|endcase|begin|end)\\b",
+      "name": "keyword.control"
+    },
+    {
+      "match": "\\b(integer|real|time|parameter|localparam)\\b",
+      "name": "storage.type"
+    },
+    {
+      "match": "\\b(0|1|z|x)\\b",
+      "name": "constant.language"
+    },
+    {
+      "match": "\\b(\\d+(\\.\\d+)?)\\b",
+      "name": "constant.numeric"
+    },
+    {
+      "match": "\"(\\\\\"|[^\"])*\"",
+      "name": "string.quoted.double"
+    },
+    {
+      "match": "'(\\\\'|[^'])*'",
+      "name": "string.quoted.single"
+    },
+    {
+      "match": "\\b(always|initial|assign|posedge|negedge)\\b",
+      "name": "keyword.other"
+    },
+    {
+      "match": "\\b(module|endmodule)\\b",
+      "name": "entity.name.function"
+    },
+    {
+      "match": "\\b(\\w+)\\s*\\(",
+      "name": "entity.name.function"
+    }
+  ]
+} 

@@ -32,7 +32,15 @@
         "command": "demo-ext.helloWorld",
         "title": "Hello World"
       }
-    ]
+    ],
+
+     "grammars": [
+    {
+      "language": "cir",
+      "scopeName": "source.cir",
+      "path": "./cir.tmLanguage.json"
+    }
+  ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

@@ -1,0 +1,33 @@
+{
+  "scopeName": "source.cir",
+  "name": "SPICE Circuit File",
+  "fileTypes": ["cir"],
+  "patterns": [
+    {
+      "name": "comment.line",
+      "match": "^\\*.*$"
+    },
+    {
+      "name": "keyword.control",
+      "match": "^\\.(TRAN|END|IC|LIB|SUBCKT|ENDS)\\b"
+    },
+    {
+      "name": "entity.name.function",
+      "match": "^[RCLVIUXYZ]\\w*"
+    },
+    {
+      "name": "variable.other.readwrite",
+      "match": "\\bN\\d+\\b"
+    },
+    {
+      "name": "constant.numeric",
+      "match": "\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?[munpfkgt]?"
+    },
+    {
+      "name": "variable.parameter",
+      "match": "\\b(AC|SIN|DC|PULSE|EXP)\\b"
+    }
+  ]
+}
+
+
