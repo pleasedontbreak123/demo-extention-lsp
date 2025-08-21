@@ -49,7 +49,7 @@ function activate(context) {
     // 创建LSP协议通讯专用通道
     traceChannel = vscode.window.createOutputChannel('demo-ext-trace');
     // 指定 LSP 服务器可执行文件的路径（修改为Windows下的.exe文件）
-    let serverModule = path.join(context.extensionPath, 'lsp-server-demo', 'target', 'release', 'lsp-server-demo.exe');
+    let serverModule = path.join(context.extensionPath, 'ext-backend', 'lsp-server', 'target', 'release', 'lsp-server.exe');
     // 显示服务器路径以便调试
     outputChannel.appendLine('LSP服务器路径: ' + serverModule);
     // 设置 LSP 服务器的环境变量
@@ -152,7 +152,14 @@ function activate(context) {
             { scheme: 'file', language: 'plaintext' },
             { scheme: 'file', language: 'cir' }
         ],
+        synchronize: {
+            // 同步配置部分到服务器
+            configurationSection: 'demo-ext',
+            // 通知服务器文件更改
+            fileEvents: vscode.workspace.createFileSystemWatcher('**/*.cir', false, false, false)
+        },
         traceOutputChannel: traceChannel, // LSP协议通讯内容专用通道
+        outputChannel: outputChannel, // 普通输出通道
         middleware: {
             sendRequest: async (type, params, token, next) => {
                 //outputChannel.appendLine('[lsp 协议内容stdin]' + JSON.stringify({ type, params }));

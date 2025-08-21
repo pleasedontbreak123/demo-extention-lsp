@@ -1,0 +1,29 @@
+.subckt Collector SA_HOp SA_HOn TrigenOut TR_HOp TR_HOn PWMp PWMn  VCOp VCOn PEAK_p PEAK_n gnd
+
+* 采样和保持 FS = 采样频率 TACQ = 采集时间 DV = 衰降电压
+YSA_HO SA_HO TrigenOut gnd SA_HOp SA_HOn PARAM: FS = 5meg TACQ = 1E-9 DV = 0.05
+
+VCTR CTR gnd DC 3.3
+* 跟踪和保持 VTH = CTR控制电压
+YTR_HO TR_HO TrigenOut gnd TR_HOp TR_HOn CTR PARAM: VTH = 1
+
+* 三角波发生器 V0 = 初始电压 V1 = 电压幅值 RDU = 第一边缘的持续时间 TDEL = 延迟时间
+YTRIGEN TRIGEN TrigenOut gnd PARAM: rdu = 1.0e-3 tdel = 0.0001 v0 = 1.0
+
+* 脉宽调制器 PVMIN = 低脉冲电压 PVMAX = 高脉冲电压 NDELAY = 延迟脉冲周期数 
+* PFREQ = 脉冲频率 DUTYMIN = 最小占空比 DUTYMAX = 最大占空比
+* CTRLMIN = 最小控制电压 CTRLMAX = 最大控制电压 TR = 脉冲上升时间 TF = 脉冲下降时间
+YPWM PWM TrigenOut gnd PWMp PWMn PARAM: PVMAX = 5.0 PVMIN = 1.0 
+
+* 压控振荡器 V1 = 输出幅值 VOFF = 偏移电压
+YVCO VCO TrigenOut gnd VCOp VCOn PARAM: V1 = 3.3 VOFF = 0
+
+* 峰值检测器 VTH = CTR控制电压 SLR = 输出信号跟随具有转换速率SLR的输入信号 RSLR = 使用回转率RSLR复位至0
+YPEAK_D PEAK_D TrigenOut gnd PEAK_p PEAK_n CTR PARAM: VTH = 1 SLR = 10 RSLR = 1
+
+* 电平检测器 V0 = 低电压电平 V1 = 高电压电平 VRL = 低参考电压 
+* VRU = 高参考电压 TR = 输出信号从V0切换到V1的时间 TF = 输出信号从V1切换到V0的时间
+YLEV_D LEV_D PWMout gnd LEV_p LEV_n PARAM: V0 = 1 V1 = 5 VRL = 2.4 VRU = 2.6 TR = 1us TF = 1us
+
+Vpwm PWMout gnd AC 0.0 PULSE ( 0.0 5.0 0.0 0.01E-3 0.01E-3 0.1E-3 0.2E-3 )  
+.ends

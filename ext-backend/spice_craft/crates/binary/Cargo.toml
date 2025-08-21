@@ -1,0 +1,15 @@
+[package]
+name = "spice-parser_binary"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "pspice"
+path = "src/pspice.rs"
+
+[dependencies]
+codespan = "0.11.1"
+codespan-reporting = "0.11.1"
+serde_json = "1.0.133"
+spice-parser_core = { path = "../core" }
+structopt = { version = "0.3.26", features = ["color"] }

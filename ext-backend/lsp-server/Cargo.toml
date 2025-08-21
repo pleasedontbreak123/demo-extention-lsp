@@ -1,0 +1,9 @@
+[package]
+name = "lsp-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tower-lsp = "0.20"
+spice-parser_core = {path = "../spice_craft/crates/core"}

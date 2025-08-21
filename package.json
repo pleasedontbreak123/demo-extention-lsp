@@ -33,12 +33,30 @@
         "title": "Hello World"
       }
     ],
+    "configuration": {
+      "type": "object",
+      "title": "Demo Extension Configuration",
+      "properties": {
+        "demo-ext.enableCompletion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable SPICE completion support"
+        }
+      }
+    },
 
      "grammars": [
     {
       "language": "cir",
       "scopeName": "source.cir",
       "path": "./cir.tmLanguage.json"
+    }
+  ],
+  "themes": [
+    {
+      "label": "SPICE Dark Theme",
+      "uiTheme": "vs-dark",
+      "path": "./themes/spice-dark-theme.json"
     }
   ]
   },
