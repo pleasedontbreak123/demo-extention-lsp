@@ -1,0 +1,66 @@
+{
+  "scopeName": "source.cir",
+  "name": "SPICE Circuit File",
+  "fileTypes": ["cir"],
+  "patterns": [
+    {
+      "name": "comment.line",
+      "match": "^\\*.*$"
+    },
+    {
+      "name": "keyword.control",
+      "match": "^\\.(TRAN|END|IC|LIB|SUBCKT|ENDS|MODEL|OPTION|PARAM|TEMP|AC|DC|OP|TF|NOISE|SENS|DISTO|MC|WCASE|ACCT|ALTER|CHGTOL|ABSTOL|RELTOL|VNTOL|ITL1|ITL2|ITL3|ITL4|ITL5|ITL6|LIMPTS|NUMDGT|PIVREL|PIVTOL|TNOM|SPICE|METHOD)\\b"
+    },
+    {
+      "name": "entity.name.function",
+      "match": "^[RCLVIUXYZ]\\w*"
+    },
+    {
+      "name": "variable.other.readwrite",
+      "match": "\\bN\\d+\\b"
+    },
+    {
+      "name": "constant.numeric",
+      "match": "\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?[munpfkgt]?"
+    },
+    {
+      "name": "variable.parameter",
+      "match": "\\b(AC|SIN|DC|PULSE|EXP|SFFM|AM|FM|TRANS|EXP|SIN|SFFM|PULSE|PWL|TABLE|POLY|VALUE|TABLE|LAPLACE|FREQ|CHEB|GAUSS|UNIF|EXP|WEIB|RAYL|POIS|BIN|CHI|TRI|TRAP|SIN|COS|TAN|ASIN|ACOS|ATAN|SINH|COSH|TANH|LOG|LN|LOG10|SQRT|EXP|ABS|SGN|INT|FRAC|MIN|MAX|LIM|TABLE|POLY|VALUE|TABLE|LAPLACE|FREQ|CHEB|GAUSS|UNIF|EXP|WEIB|RAYL|POIS|BIN|CHI|TRI|TRAP|SIN|COS|TAN|ASIN|ACOS|ATAN|SINH|COSH|TANH|LOG|LN|LOG10|SQRT|EXP|ABS|SGN|INT|FRAC|MIN|MAX|LIM)\\b"
+    },
+    {
+      "name": "keyword.other",
+      "match": "\\b(PARAM|LEVEL|VON|VOFF|RON|ROFF|MODEL|SUBCKT|ENDS|LIB|IC|TRAN|AC|DC|OP|TF|NOISE|SENS|DISTO|MC|WCASE|ACCT|ALTER|CHGTOL|ABSTOL|RELTOL|VNTOL|ITL1|ITL2|ITL3|ITL4|ITL5|ITL6|LIMPTS|NUMDGT|PIVREL|PIVTOL|TNOM|SPICE|METHOD)\\b"
+    },
+    {
+      "name": "string.quoted.double",
+      "match": "\"(\\\\\"|[^\"])*\""
+    },
+    {
+      "name": "string.quoted.single", 
+      "match": "'(\\\\'|[^'])*'"
+    },
+    {
+      "name": "comment.block",
+      "begin": "\\*\\*",
+      "end": "\\*\\*"
+    },
+    {
+      "name": "variable.language",
+      "match": "\\b(IS|RS|N|TT|CJO|VJ|BV|IBV|EG|XTI|KF|AF|FC|M|LEVEL|VON|VOFF|RON|ROFF|PARAM|MODEL|SUBCKT|ENDS|LIB|IC|TRAN|AC|DC|OP|TF|NOISE|SENS|DISTO|MC|WCASE|ACCT|ALTER|CHGTOL|ABSTOL|RELTOL|VNTOL|ITL1|ITL2|ITL3|ITL4|ITL5|ITL6|LIMPTS|NUMDGT|PIVREL|PIVTOL|TNOM|SPICE|METHOD)\\b"
+    },
+    {
+      "name": "constant.language",
+      "match": "\\b(TRUE|FALSE|ON|OFF|YES|NO)\\b"
+    },
+    {
+      "name": "keyword.operator",
+      "match": "\\b(AND|OR|NOT|XOR|XNOR|NAND|NOR)\\b"
+    },
+    {
+      "name": "storage.type",
+      "match": "\\b(INTEGER|REAL|TIME|PARAMETER|LOCALPARAM|STRING|BOOLEAN|COMPLEX|VECTOR|MATRIX)\\b"
+    }
+  ]
+}
+
+

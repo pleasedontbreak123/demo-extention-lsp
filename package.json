@@ -10,16 +10,55 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:plaintext"
+    "onLanguage:plaintext",
+    "onLanguage:cir"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "languages": [
+      {
+        "id": "cir",
+        "extensions": [".cir"],
+        "aliases": ["Circuit File"]
+      },
+      {
+        "id": "plaintext",
+        "extensions": [".txt"],
+        "aliases": ["Text File"]
+      }
+    ],
     "commands": [
       {
         "command": "demo-ext.helloWorld",
         "title": "Hello World"
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Demo Extension Configuration",
+      "properties": {
+        "demo-ext.enableCompletion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable SPICE completion support"
+        }
+      }
+    },
+
+     "grammars": [
+    {
+      "language": "cir",
+      "scopeName": "source.cir",
+      "path": "./cir.tmLanguage.json"
+    }
+  ],
+  "themes": [
+    {
+      "label": "SPICE Dark Theme",
+      "uiTheme": "vs-dark",
+      "path": "./themes/spice-dark-theme.json"
+    }
+  ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

@@ -1,0 +1,13 @@
+[package]
+name = "spice-parser-clib"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+spice-parser_core = { path = "../core" }
+serde_json = "1.0.133"
+test-cdylib = "1.1.0"
+dlopen = "0.1.8"

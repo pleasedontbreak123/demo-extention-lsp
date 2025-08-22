@@ -1,0 +1,20 @@
+.pipeline: &pipeline
+  docker:
+    image: rust:1.83  # 使用最新的 Rust 官方 Docker 镜像
+  stages:
+    - name: 依赖安装
+      script: cargo build --release
+    - name: 测试用例检查
+      script: cargo test
+
+develop:
+  push:
+    - <<: *pipeline
+  merge_request:
+    - <<: *pipeline
+
+master:
+  push:
+    - <<: *pipeline
+  merge_request:
+    - <<: *pipeline
