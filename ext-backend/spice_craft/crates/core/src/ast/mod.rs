@@ -3,7 +3,7 @@
 use std::fmt::Debug;
 
 use command::Command;
-use component::{Component, ComponentPartial};
+use component::{Component};
 use expression::Number;
 use serde::Serialize;
 use spice_proc_macro::TryParse;

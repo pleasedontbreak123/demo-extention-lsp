@@ -2,6 +2,7 @@ use tower_lsp::{LspService, Server};
 mod handler;
 mod server;
 mod state;
+mod symbol_info;
 
 #[tokio::main]
 async fn main() {

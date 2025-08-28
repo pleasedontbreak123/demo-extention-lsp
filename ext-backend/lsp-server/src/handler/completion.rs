@@ -1,6 +1,6 @@
 use crate::state::SharedServerState;
+use std::fs;
 use spice_parser_core::ast::component::{ComponentPartial};
-use spice_parser_core::ast::Atom;
 use spice_parser_core::lexer::SpiceLexer;
 use spice_parser_core::parse::{PartialParse, SpiceLineParser};
 use tower_lsp::lsp_types::{*, Documentation, InsertTextFormat};
@@ -17,15 +17,69 @@ pub async fn on_completion(
     let uri = params.text_document_position.text_document.uri;
 
     // 2. 获取文档内容
-    let source = {
+    let (maybe_source, existed) = {
         let s = state.lock().await;
-        s.documents.get(&uri).cloned().unwrap_or_default()
+        let opt = s.documents.get(&uri).cloned();
+        (opt, s.documents.contains_key(&uri))
     };
+    if !existed {
+        client
+            .log_message(
+                MessageType::INFO,
+                &format!("completion: document not found in cache: {:?}", uri),
+            )
+            .await;
+    }
+    let mut source = maybe_source.unwrap_or_default();
+    if source.text.is_empty() {
+        if let Ok(path) = uri.to_file_path() {
+            if let Ok(content) = fs::read_to_string(&path) {
+                client
+                    .log_message(
+                        MessageType::INFO,
+                        &format!("completion: loaded from disk: {:?}", path),
+                    )
+                    .await;
+                source.text = content;
+                // 可选：写回缓存，避免后续重复读取
+                {
+                    let mut s = state.lock().await;
+                    if let Some(doc) = s.documents.get_mut(&uri) {
+                        doc.text = source.text.clone();
+                    } else {
+                        s.documents.insert(uri.clone(), source.clone());
+                    }
+                }
+            }
+        }
+    }
 
     // 3. 获取光标所在行和列
     let line = params.text_document_position.position.line as usize;
     let col = params.text_document_position.position.character as usize;
-    let line_text = source.lines().nth(line).unwrap_or("");
+    
+    let total_lines = source.text.lines().count();
+    if total_lines == 0 {
+        client
+            .log_message(
+                MessageType::INFO,
+                &format!("completion: empty document text, uri={:?}", uri),
+            )
+            .await;
+        return Ok(Some(CompletionResponse::Array(vec![])));
+    }
+    let safe_line = if line >= total_lines { total_lines - 1 } else { line };
+    let line_text = source
+        .text
+        .lines()
+        .nth(safe_line)
+        .unwrap_or("");
+    client
+        .log_message(
+            MessageType::INFO,
+            &format!("completion safe_line={} total_lines={} extracted='{}'", safe_line, total_lines, line_text),
+        )
+        .await;
 
      client.log_message(MessageType::INFO, &format!("completion line: {:?}",line_text)).await;
 
@@ -50,7 +104,7 @@ pub async fn on_completion(
     let mut parser = SpiceLineParser::new(&tokens.first().unwrap());
 
     let completions = match <SpiceLineParser as PartialParse<ComponentPartial>>::info(&mut parser) {
-        Ok((partial, elements)) => {
+        Ok((partial, _elements)) => {
             // 基于partial解析结果生成completions
             generate_completions_from_partial(&partial, col)
         }
