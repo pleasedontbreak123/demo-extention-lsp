@@ -1,4 +1,4 @@
-use crate::state::SharedServerState;
+use crate::state::{SharedServerState,DocumentState};
 use spice_parser_core::try_parse_program;
 use tower_lsp::Client;
 use tower_lsp::lsp_types::*;
@@ -13,7 +13,13 @@ pub async fn on_did_open(
 
     {
         let mut s = state.lock().await;
-        s.documents.insert(uri.clone(), text.clone());
+        //s.documents.insert(uri.clone(), text.clone());
+        let doc_state = DocumentState {
+            text,
+            ast: None,
+            symbols: None,
+        };    
+        s.documents.insert(uri.clone(), doc_state);
     }
 
     reparse_and_publish(client, state, uri).await;
@@ -35,7 +41,10 @@ pub async fn on_did_change(
 
     {
         let mut s = state.lock().await;
-        s.documents.insert(uri.clone(), new_text);
+        if let Some(doc) = s.documents.get_mut(&uri) {
+            doc.text = new_text;
+            doc.ast = None; // 等待重新解析
+        }
     }
 
     reparse_and_publish(client, state, uri).await;
@@ -44,7 +53,7 @@ pub async fn on_did_change(
 async fn reparse_and_publish(client: &Client, state: SharedServerState, uri: Url) {
     let source = {
         let s = state.lock().await;
-        s.documents.get(&uri).cloned().unwrap_or_default()
+        s.documents.get(&uri).map(|doc| doc.text.clone() ).unwrap_or_default()
     };
 
     match try_parse_program(&source) {
@@ -52,7 +61,10 @@ async fn reparse_and_publish(client: &Client, state: SharedServerState, uri: Url
             // 缓存 AST
             {
                 let mut s = state.lock().await;
-                s.asts.insert(uri.clone(), program);
+                if let Some(doc) = s.documents.get_mut(&uri) {
+                    doc.ast = Some(program); // 等待重新解析
+                }
+                
             }
 
             // 清空诊断（或基于 AST 生成真正的诊断）
