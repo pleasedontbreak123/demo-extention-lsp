@@ -1,18 +1,17 @@
 use crate::state::SharedServerState;
-use std::fs;
-use spice_parser_core::ast::component::{ComponentPartial};
+use spice_parser_core::ast::component::ComponentPartial;
+use spice_parser_core::ast::Atom;
 use spice_parser_core::lexer::SpiceLexer;
 use spice_parser_core::parse::{PartialParse, SpiceLineParser};
-use tower_lsp::lsp_types::{*, Documentation, InsertTextFormat};
+use std::fs;
 use tower_lsp::Client;
+use tower_lsp::lsp_types::{Documentation, InsertTextFormat, *};
 
 pub async fn on_completion(
-    client: &Client, 
+    client: &Client,
     state: SharedServerState,
     params: CompletionParams,
 ) -> Result<Option<CompletionResponse>, tower_lsp::jsonrpc::Error> {
-    
-    
     // 1. 获取文档 URI
     let uri = params.text_document_position.text_document.uri;
 
@@ -57,7 +56,7 @@ pub async fn on_completion(
     // 3. 获取光标所在行和列
     let line = params.text_document_position.position.line as usize;
     let col = params.text_document_position.position.character as usize;
-    
+
     let total_lines = source.text.lines().count();
     if total_lines == 0 {
         client
@@ -68,38 +67,46 @@ pub async fn on_completion(
             .await;
         return Ok(Some(CompletionResponse::Array(vec![])));
     }
-    let safe_line = if line >= total_lines { total_lines - 1 } else { line };
-    let line_text = source
-        .text
-        .lines()
-        .nth(safe_line)
-        .unwrap_or("");
+    let safe_line = if line >= total_lines {
+        total_lines - 1
+    } else {
+        line
+    };
+    let line_text = source.text.lines().nth(safe_line).unwrap_or("");
     client
         .log_message(
             MessageType::INFO,
-            &format!("completion safe_line={} total_lines={} extracted='{}'", safe_line, total_lines, line_text),
+            &format!(
+                "completion safe_line={} total_lines={} extracted='{}'",
+                safe_line, total_lines, line_text
+            ),
         )
         .await;
 
-     client.log_message(MessageType::INFO, &format!("completion line: {:?}",line_text)).await;
+    client
+        .log_message(
+            MessageType::INFO,
+            &format!("completion line: {:?}", line_text),
+        )
+        .await;
 
     let tokens = SpiceLexer::tokenize(line_text);
     if tokens.is_empty() {
-      // 如果没有tokens，提供默认的补全选项
-      let completions = vec!["R".to_string(), "C".to_string(), "L".to_string()];
-      let items: Vec<CompletionItem> = completions
-          .into_iter()
-          .map(|label| CompletionItem {
-              label: label.clone(),
-              kind: Some(CompletionItemKind::TEXT),
-              detail: Some("SPICE Component".to_string()),
-              documentation: Some(Documentation::String("SPICE电路元件".to_string())),
-              insert_text: Some(label),
-              insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
-              ..Default::default()
-          })
-          .collect();
-      return Ok(Some(CompletionResponse::Array(items)));
+        // 如果没有tokens，提供默认的补全选项
+        let completions = vec!["R".to_string(), "C".to_string(), "L".to_string()];
+        let items: Vec<CompletionItem> = completions
+            .into_iter()
+            .map(|label| CompletionItem {
+                label: label.clone(),
+                kind: Some(CompletionItemKind::TEXT),
+                detail: Some("SPICE Component".to_string()),
+                documentation: Some(Documentation::String("SPICE电路元件".to_string())),
+                insert_text: Some(label),
+                insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
+                ..Default::default()
+            })
+            .collect();
+        return Ok(Some(CompletionResponse::Array(items)));
     }
     let mut parser = SpiceLineParser::new(&tokens.first().unwrap());
 
@@ -124,7 +131,7 @@ pub async fn on_completion(
             } else {
                 label.clone()
             };
-            
+
             CompletionItem {
                 label,
                 kind: Some(CompletionItemKind::TEXT),

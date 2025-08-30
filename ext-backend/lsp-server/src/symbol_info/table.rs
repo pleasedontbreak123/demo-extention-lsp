@@ -1,26 +1,89 @@
+use std::{
+    collections::{BTreeMap, HashMap},
+    hash::{Hash, Hasher},
+};
 
-
+use super::symbol::{SpiceSymbolKind, Symbol};
+use spice_parser_core::ast::{Instruction, Name, Program, component::Component};
 use tower_lsp::lsp_types::{Position, Range, Url};
-use super::symbol::{Symbol, SpiceSymbolKind};
-use spice_parser_core::ast::{Program, Instruction, component::Component, Name};
 
 #[derive(Debug, Clone)]
-pub struct SymbolTable{
-    pub uri: Url,
-    pub table: Vec<Symbol>
+pub struct OrderedRange {
+    pub start: Position,
+    pub end: Position,
 }
 
-impl SymbolTable{
+impl From<Range> for OrderedRange {
+    fn from(value: Range) -> Self {
+        Self {
+            start: value.start,
+            end: value.end,
+        }
+    }
+}
 
+impl PartialEq for OrderedRange {
+    fn eq(&self, other: &Self) -> bool {
+        self.start == other.start && self.end == other.end
+    }
+}
+
+impl Eq for OrderedRange {}
+
+impl Hash for OrderedRange {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.start.line.hash(state);
+        self.start.character.hash(state);
+        self.end.line.hash(state);
+        self.end.character.hash(state);
+    }
+}
+
+impl PartialOrd for OrderedRange {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self.start.partial_cmp(&other.start) {
+            Some(std::cmp::Ordering::Equal) => {
+                self.end.partial_cmp(&other.end)
+            }
+            ordering => ordering,
+        }
+    }
+}
+
+impl Ord for OrderedRange {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.start.cmp(&other.start) {
+            std::cmp::Ordering::Equal => {
+                self.end.cmp(&other.end)
+            }
+            ordering => ordering,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SymbolTable {
+    pub uri: Url,
+    pub table: HashMap<String, Symbol>,
+    pub range: BTreeMap<OrderedRange, String>,
+}
+
+impl SymbolTable {
     pub fn new(uri: Url) -> Self {
-        SymbolTable { uri, table: Vec::new() }
+        SymbolTable {
+            uri,
+            table: HashMap::new(),
+            range: BTreeMap::new(),
+        }
     }
 
     pub fn build_from_ast(uri: Url, program: Program) -> Self {
         let mut table = SymbolTable::new(uri.clone());
 
         if let Some(name) = program.name.clone() {
-            table.table.push(Self::symbol_from_name(&name, SpiceSymbolKind::CircuitName));
+            let symbol = Self::symbol_from_name(&name, SpiceSymbolKind::CircuitName);
+            table.range.insert(symbol.range.into(), symbol.name.clone());
+            table.table.insert(symbol.name.clone(), symbol);
         }
 
         for ins in &program.instructions {
@@ -39,7 +102,8 @@ impl SymbolTable{
         match ins {
             Instruction::Component(c) => {
                 let sym = Self::symbol_from_component(c, container.clone());
-                table.table.push(sym);
+                table.range.insert(sym.range.into(), sym.name.clone());
+                table.table.insert(sym.name.clone(), sym);
             }
             Instruction::Command(_cmd) => {
                 // 暂不为命令生成符号
@@ -54,6 +118,7 @@ impl SymbolTable{
             range: Self::name_to_range(name),
             kind: SpiceSymbolKind::Component,
             container,
+            refcnt: 0,
         }
     }
 
@@ -89,6 +154,7 @@ impl SymbolTable{
             range: Self::name_to_range(name),
             kind,
             container: None,
+            refcnt: 0,
         }
     }
 
@@ -100,5 +166,19 @@ impl SymbolTable{
             start: Position::new(line, start as u32),
             end: Position::new(line, end as u32),
         }
+    }
+
+    /// 根据给定的位置查找对应的符号名
+    pub fn symbol_name_at_position(&self, position: Position) -> Option<String> {
+        self.range
+            .iter()
+            .find(|(range, _)| position >= range.start && position < range.end)
+            .map(|(_, name)| name.clone())
+    }
+
+    /// 根据给定的位置查找对应的符号
+    pub fn symbol_at_position(&self, position: Position) -> Option<&Symbol> {
+        self.symbol_name_at_position(position)
+            .and_then(|name| self.table.get(&name))
     }
 }

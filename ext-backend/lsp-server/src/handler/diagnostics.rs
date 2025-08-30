@@ -1,4 +1,4 @@
-use crate::state::{SharedServerState,DocumentState};
+use crate::state::{DocumentState, SharedServerState};
 use spice_parser_core::try_parse_program;
 use tower_lsp::Client;
 use tower_lsp::lsp_types::*;
@@ -18,7 +18,7 @@ pub async fn on_did_open(
             text,
             ast: None,
             symbols: None,
-        };    
+        };
         s.documents.insert(uri.clone(), doc_state);
     }
 
@@ -53,7 +53,10 @@ pub async fn on_did_change(
 async fn reparse_and_publish(client: &Client, state: SharedServerState, uri: Url) {
     let source = {
         let s = state.lock().await;
-        s.documents.get(&uri).map(|doc| doc.text.clone() ).unwrap_or_default()
+        s.documents
+            .get(&uri)
+            .map(|doc| doc.text.clone())
+            .unwrap_or_default()
     };
 
     match try_parse_program(&source) {
@@ -64,7 +67,6 @@ async fn reparse_and_publish(client: &Client, state: SharedServerState, uri: Url
                 if let Some(doc) = s.documents.get_mut(&uri) {
                     doc.ast = Some(program); // 等待重新解析
                 }
-                
             }
 
             // 清空诊断（或基于 AST 生成真正的诊断）

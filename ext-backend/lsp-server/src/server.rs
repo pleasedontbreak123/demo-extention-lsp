@@ -30,7 +30,14 @@ impl LanguageServer for Server {
                 )),
                 completion_provider: Some(CompletionOptions {
                     resolve_provider: Some(false),
-                    trigger_characters: Some(vec![".".to_string(), ":".to_string(), " ".to_string(), "R".to_string(), "C".to_string(), "L".to_string()]),
+                    trigger_characters: Some(vec![
+                        ".".to_string(),
+                        ":".to_string(),
+                        " ".to_string(),
+                        "R".to_string(),
+                        "C".to_string(),
+                        "L".to_string(),
+                    ]),
                     all_commit_characters: None,
                     work_done_progress_options: WorkDoneProgressOptions::default(),
                     completion_item: None,
@@ -51,29 +58,41 @@ impl LanguageServer for Server {
     }
 
     async fn shutdown(&self) -> Result<()> {
-        self.client.log_message(MessageType::INFO, "Server is shutting down").await;
+        self.client
+            .log_message(MessageType::INFO, "Server is shutting down")
+            .await;
         Ok(())
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-         self.client
-            .log_message(MessageType::INFO, &format!("did_open: {:?}", params.text_document.uri))
+        self.client
+            .log_message(
+                MessageType::INFO,
+                &format!("did_open: {:?}", params.text_document.uri),
+            )
             .await;
         handler::diagnostics::on_did_open(&self.client, self.state.clone(), params).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-         self.client
-            .log_message(MessageType::INFO, &format!("did_change: {:?}", params.text_document.uri))
+        self.client
+            .log_message(
+                MessageType::INFO,
+                &format!("did_change: {:?}", params.text_document.uri),
+            )
             .await;
         handler::diagnostics::on_did_change(&self.client, self.state.clone(), params).await;
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
-          self.client
-            .log_message(MessageType::INFO, &format!("completion request at {:?}", params.text_document_position))
+        self.client
+            .log_message(
+                MessageType::INFO,
+                &format!("completion request at {:?}", params.text_document_position),
+            )
             .await;
-        let response = handler::completion::on_completion(&self.client,self.state.clone(), params).await;
+        let response =
+            handler::completion::on_completion(&self.client, self.state.clone(), params).await;
         //  self.client
         //     .log_message(MessageType::INFO, &format!("completion responce at {:?}", response))
         //     .await;
