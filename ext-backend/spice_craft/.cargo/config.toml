@@ -1,4 +1,0 @@
-[profile.release]
-lto = "fat"
-opt-level = 3
-strip = "symbols"

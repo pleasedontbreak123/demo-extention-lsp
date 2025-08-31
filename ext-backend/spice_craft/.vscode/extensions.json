@@ -1,7 +1,0 @@
-{
-  "recommendations": [
-    "gruntfuggly.todo-tree",
-    "tamasfe.even-better-toml",
-    "rust-lang.rust-analyzer"
-  ]
-}

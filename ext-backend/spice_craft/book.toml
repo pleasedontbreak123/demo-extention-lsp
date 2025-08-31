@@ -1,6 +1,0 @@
-[book]
-authors = ["nobody"]
-language = "zh_CN"
-multilingual = false
-src = "docs"
-title = "使用手册"

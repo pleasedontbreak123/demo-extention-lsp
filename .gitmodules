@@ -1,0 +1,4 @@
+[submodule "ext-backend/spice_craft"]
+	path = ext-backend/spice_craft
+	url = git@git.jehitec.com:Lymikron/spice_craft.git
+	branch = lsp
