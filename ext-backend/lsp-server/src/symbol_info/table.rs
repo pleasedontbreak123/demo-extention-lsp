@@ -4,7 +4,7 @@ use std::{
 };
 
 use super::symbol::{SpiceSymbolKind, Symbol};
-use spice_parser_core::ast::{Instruction, Name, Program, component::Component};
+use spice_parser_core::{ast::{component::Component, Instruction, Name, Node, Program}, parse::ExposeNodes};
 use tower_lsp::lsp_types::{Position, Range, Url};
 
 #[derive(Debug, Clone)]
@@ -104,6 +104,12 @@ impl SymbolTable {
                 let sym = Self::symbol_from_component(c, container.clone());
                 table.range.insert(sym.range.into(), sym.name.clone());
                 table.table.insert(sym.name.clone(), sym);
+
+                for node in &c.nodes() {
+                    let sym = Self::symbol_from_node(node, container.clone());
+                    table.range.insert(sym.range.into(), sym.name.clone());
+                    table.table.insert(sym.name.clone(), sym);
+                }
             }
             Instruction::Command(_cmd) => {
                 // 暂不为命令生成符号
@@ -121,6 +127,18 @@ impl SymbolTable {
             refcnt: 0,
         }
     }
+
+    fn symbol_from_node(node: &Node,container: Option<String>) -> Symbol{
+       let name = Name(node.0.clone());
+        Symbol {
+            name: name.0.to_string(),                 // 节点名
+            range: Self::name_to_range(&name),        // 复用 name_to_range 取精确位置
+            kind: SpiceSymbolKind::Node,
+            container,
+            refcnt: 0,
+        }
+    }
+
 
     fn component_name(cmp: &Component) -> &Name {
         use Component::*;
@@ -181,4 +199,25 @@ impl SymbolTable {
         self.symbol_name_at_position(position)
             .and_then(|name| self.table.get(&name))
     }
+
+   pub fn get_nodes(&self) -> Vec<Symbol> {
+    let mut nodes: Vec<Symbol> = self.table
+        .values()
+        .filter(|s| matches!(s.kind, SpiceSymbolKind::Node))
+        .cloned()
+        .collect();
+    nodes.sort_by(|a, b| a.name.cmp(&b.name));
+    nodes
+}
+
+pub fn get_node_names(&self) -> Vec<String> {
+    let mut names: Vec<String> = self.table
+        .values()
+        .filter(|s| matches!(s.kind, SpiceSymbolKind::Node))
+        .map(|s| s.name.clone())
+        .collect();
+    names.sort();
+    names.dedup();
+    names
+}
 }

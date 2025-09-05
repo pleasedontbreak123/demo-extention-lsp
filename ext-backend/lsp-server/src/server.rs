@@ -25,18 +25,17 @@ impl LanguageServer for Server {
         // 告诉客户端我们支持的能力
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
+
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::FULL, // 简化：使用全量同步
-                )),
+                    TextDocumentSyncKind::FULL,
+                )), // 使用全量同步
+
                 completion_provider: Some(CompletionOptions {
                     resolve_provider: Some(false),
                     trigger_characters: Some(vec![
                         ".".to_string(),
                         ":".to_string(),
                         " ".to_string(),
-                        "R".to_string(),
-                        "C".to_string(),
-                        "L".to_string(),
                     ]),
                     all_commit_characters: None,
                     work_done_progress_options: WorkDoneProgressOptions::default(),

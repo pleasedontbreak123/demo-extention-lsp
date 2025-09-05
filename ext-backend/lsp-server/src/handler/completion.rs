@@ -1,4 +1,6 @@
 use crate::state::SharedServerState;
+use crate::symbol_info::symbol;
+use crate::symbol_info::table::SymbolTable;
 use spice_parser_core::ast::component::ComponentPartial;
 use spice_parser_core::ast::Atom;
 use spice_parser_core::lexer::SpiceLexer;
@@ -13,7 +15,18 @@ pub async fn on_completion(
     params: CompletionParams,
 ) -> Result<Option<CompletionResponse>, tower_lsp::jsonrpc::Error> {
     // 1. 获取文档 URI
-    let uri = params.text_document_position.text_document.uri;
+    let uri = params.text_document_position.text_document.uri.clone();
+
+    // 入口轻量日志，便于确认请求是否到达本函数
+    client
+        .log_message(
+            MessageType::INFO,
+            &format!(
+                "completion request at {:?}",
+                params.text_document_position.clone()
+            ),
+        )
+        .await;
 
     // 2. 获取文档内容
     let (maybe_source, existed) = {
@@ -21,6 +34,9 @@ pub async fn on_completion(
         let opt = s.documents.get(&uri).cloned();
         (opt, s.documents.contains_key(&uri))
     };
+
+    //let symbol = maybe_source.unwrap().symbols.unwrap();
+    
     if !existed {
         client
             .log_message(
@@ -29,6 +45,7 @@ pub async fn on_completion(
             )
             .await;
     }
+    
     let mut source = maybe_source.unwrap_or_default();
     if source.text.is_empty() {
         if let Ok(path) = uri.to_file_path() {
@@ -53,6 +70,29 @@ pub async fn on_completion(
         }
     }
 
+    // 兜底：如果文本依然为空，安全返回
+    if source.text.trim().is_empty() {
+        client
+            .log_message(
+                MessageType::INFO,
+                &format!("completion: no text available for {:?}", uri),
+            )
+            .await;
+        return Ok(Some(CompletionResponse::Array(vec![])));
+    }
+
+
+    client
+        .log_message(
+            MessageType::INFO,
+            &format!(
+                "text : {}",
+               source.text
+            ),
+        )
+        .await;
+
+
     // 3. 获取光标所在行和列
     let line = params.text_document_position.position.line as usize;
     let col = params.text_document_position.position.character as usize;
@@ -72,87 +112,376 @@ pub async fn on_completion(
     } else {
         line
     };
+
     let line_text = source.text.lines().nth(safe_line).unwrap_or("");
+    
     client
         .log_message(
             MessageType::INFO,
             &format!(
-                "completion safe_line={} total_lines={} extracted='{}'",
-                safe_line, total_lines, line_text
+                "completion safe_line={} total_lines={} extracted='{}' len={}",
+                safe_line, total_lines, line_text,line_text.len()
             ),
         )
         .await;
 
-    client
+
+
+    let mut items: Vec<CompletionItem> = Vec::new();
+
+    if line_text.len() < 3 {
+        let cmp_name = generate_component_completions(line_text);
+
+         client
         .log_message(
             MessageType::INFO,
-            &format!("completion line: {:?}", line_text),
+            &format!(
+                "completion name={}",
+                cmp_name.len()
+            ),
         )
         .await;
 
-    let tokens = SpiceLexer::tokenize(line_text);
-    if tokens.is_empty() {
-        // 如果没有tokens，提供默认的补全选项
-        let completions = vec!["R".to_string(), "C".to_string(), "L".to_string()];
-        let items: Vec<CompletionItem> = completions
-            .into_iter()
-            .map(|label| CompletionItem {
-                label: label.clone(),
+        for name in cmp_name{
+            let cmp_item = CompletionItem {
+                label: name.clone(),
                 kind: Some(CompletionItemKind::TEXT),
                 detail: Some("SPICE Component".to_string()),
                 documentation: Some(Documentation::String("SPICE电路元件".to_string())),
-                insert_text: Some(label),
+                insert_text: Some(name),
                 insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
+                ..Default::default()
+            };
+            items.push(cmp_item);
+        }
+        
+    }else if line_text.len() >= 3 && col == 3 {
+        if let Some((label, snippet)) = generate_snippet(line_text, source.symbols.as_ref()) {
+            items.push(CompletionItem {
+                label: label.to_string(),
+                kind: Some(CompletionItemKind::SNIPPET),
+                insert_text: Some(snippet),
+                insert_text_format: Some(InsertTextFormat::SNIPPET),
                 ..Default::default()
             })
-            .collect();
-        return Ok(Some(CompletionResponse::Array(items)));
+        }
     }
-    let mut parser = SpiceLineParser::new(&tokens.first().unwrap());
 
-    let completions = match <SpiceLineParser as PartialParse<ComponentPartial>>::info(&mut parser) {
-        Ok((partial, _elements)) => {
-            // 基于partial解析结果生成completions
-            generate_completions_from_partial(&partial, col)
-        }
-        Err(_) => {
-            // 如果解析失败，提供默认的completions
-            vec!["R".to_string(), "C".to_string(), "L".to_string()]
-        }
-    };
+    
 
-    // 4. 构造 CompletionItem 列表
-    let items: Vec<CompletionItem> = completions
-        .into_iter()
-        .map(|label| {
-            let insert_text = if label.starts_with("just test") {
-                // 对于测试文本，只取实际有用的建议
-                "1".to_string()
-            } else {
-                label.clone()
-            };
-
-            CompletionItem {
-                label,
-                kind: Some(CompletionItemKind::TEXT),
-                detail: Some("SPICE Component".to_string()),
-                documentation: Some(Documentation::String("SPICE电路元件".to_string())),
-                insert_text: Some(insert_text),
-                insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
-                ..Default::default()
-            }
-        })
-        .collect();
-
-    // 5. 返回 CompletionResponse
-    // 记录响应内容用于调试
-    // client.log_message(MessageType::INFO, &format!("Sending {} completion items", items.len())).await;
     Ok(Some(CompletionResponse::Array(items)))
 }
 
-fn generate_completions_from_partial(partial: &ComponentPartial, cursor_pos: usize) -> Vec<String> {
-    let mut completions = Vec::new();
 
+fn generate_snippet(str:&str,symbols: Option<&SymbolTable>,) -> Option<(String, String)> {
+
+    let names: Vec<String> = symbols
+                            .map(|s| s.get_node_names())
+                            .unwrap_or_default();
+
+     // ${2|n1,n2,n3|}
+    let node_choices_2 = if names.is_empty() {
+        "${2|N1,N2,N3|}".to_string()
+    } else {
+        format!("${{2|{}|}}", names.join(","))
+    };
+
+    // ${3|n1,n2,n3|}
+    let node_choices_3 = if names.is_empty() {
+        "${3|N1,N2,N3|}".to_string()
+    } else {
+        format!("${{3|{}|}}", names.join(","))
+    };
+
+    //let unit_choices = "${5|Ω,kΩ,MΩ|}".to_string();
+    match str.chars().next() {
+        Some('R') =>{ 
+            let snippet = node_choices_2.clone() + " "                          // (+) node
+                + &node_choices_3 + " "                                         // (-) node
+                + "${5:[model]} "                                               // [model name] 可跳过
+                + "${6:value} "                                                 // <value>
+                + "${7:[TC1]} "                                                 // [TC=<TC1>] 可跳过
+                + "${8:[TC2]}";        
+            Some((
+                "R 模板:R<name> <(+) node> <(-) node> [model name] <value> [TC = <TC1> [,<TC2>]]".to_string(),
+                snippet,                                // [,<TC2>]   
+            ))
+        }
+        Some('C') => {
+            let snippet = node_choices_2.clone() + " "                          // (+) node
+                + &node_choices_3 + " "
+                + "${5:[model]} "                                               // [model name] 可跳过
+                + "${6:value} "
+                + "${7:[IC=<initial value>]}";
+
+            Some((
+                "C 模板:C<name> <(+) node> <(-) node> [model name] <value> [IC=<initial value>]".to_string(),
+                snippet,
+            ))
+        }
+        Some('L') => {
+            let snippet = node_choices_2.clone() + " "                          // (+) node
+                + &node_choices_3 + " "
+                + "${5:[model]} "                                               // [model name] 可跳过
+                + "${6:value} "
+                + "${7:[IC=<initial value>]}";
+            Some((
+                "L 模板: L<name> <(+) node> <(-) node> [model name] <value> [IC=<initial value>]".to_string(),
+                snippet,
+            ))
+        }
+        Some('B') => {
+            let snippet = node_choices_2.clone() + " "                          // (+) node
+                + &node_choices_3 + " "  
+                + &node_choices_3 + " "                        // <source node>
+                + "${6:model} "                                            // <model name>
+                + "[${7:}]";  
+            Some((
+                "砷化镓 MES 场效应晶体管: <name> <drain node> <gate node> <source node> <model name> [area value]".to_string(),
+                snippet,
+            ))    
+        }
+
+        Some('D') => {
+            let snippet = node_choices_2.clone() + " "                          // (+) node
+                + &node_choices_3 + " "                          // <source node>
+                + "${6:model} "                                            // <model name>
+                + "[${7:area value}]";  
+            Some((
+                "二极管: D<name> <(+) node> <(-) node> <model name> [area value]".to_string(),
+                snippet,
+            ))    
+        }
+
+        Some('E') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "                         
+                + "${4:gain value}"  ;  
+            Some((
+                "电压源: E<name> <(+) node> <(-) node> <gain>".to_string(),
+                snippet,
+            ))    
+        }
+
+        Some('F') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "                         
+                + "${4:gain value}"  ;  
+            Some((
+                "电流控制电流源: F<name> <(+) node> <(-) node> <gain>".to_string(),
+                snippet,
+            ))    
+        }
+
+        Some('G') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "                         
+                + "${4:gain value}"  ;  
+            Some((
+                "电流控制电流源: G<name> <(+) node> <(-) node> <gain>".to_string(),
+                snippet,
+            ))    
+        }
+
+        Some('H') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "                         
+                + "${4:gain value}"  ;  
+            Some((
+                "电流控制电压源: H<name> <(+) node> <(-) node> <gain>".to_string(),
+                snippet,
+            ))    
+        }
+
+        Some('I') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "                         
+                + "${3:[dc]} "
+                + "${4:[ac]} "
+                + "${5:[transient]}"  ;  
+            Some((
+                "独立电流源: I<name> <node1> <node2> [<dc>] [<ac>] [<transient>]".to_string(),
+                snippet,
+            ))    
+        }
+ 
+        Some('J') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "  
+                + &node_choices_3 + " "                       
+                + "${3:model} "
+                + "${4:[area value]} ";  
+            Some((
+                "结型场效应晶体管: J<name> <drain node> <gate node> <source node> <model name> [area value]".to_string(),
+                snippet,
+            ))    
+        }
+
+        //todo  L 的智能补全还未完成
+        Some('K') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "  
+                + &node_choices_3 + " "                       
+                + "${3:model} "
+                + "${4:[area value]} ";  
+            Some((
+                "互感器(L 的智能补全还未完成): K<name> <induct1> <induct2> ... <k> [<model> [<size>]]".to_string(),
+                snippet,
+            ))    
+        }
+
+        Some('M') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "  
+                + &node_choices_3 + " "
+                + &node_choices_3 + " "                       
+                + "${3:model} "
+                + " [L=${7}]"                     // optional L
+                + " [W=${8}]"                     // optional W
+                + " [AD=${9}] [AS=${10}]"         // optional AD/AS
+                + " [PD=${11}] [PS=${12}]"        // optional PD/PS
+                + " [NRD=${13}] [NRS=${14}]"      // optional NRD/NRS
+                + " [NRG=${15}] [NRB=${16}]"      // optional NRG/NRB
+                + " [M=${17}] [N=${18}]";  
+                      
+            Some((
+                "MOS 场效应晶体管: M<name> <drain node> <gate node> <source node>`
+                + <bulk/substrate node> <model name>`
+                + [L=<value>] [W=<value>]`
+                + [AD=<value>] [AS=<value>]`
+                + [PD=<value>] [PS=<value>]`
+                + [NRD=<value>] [NRS=<value>]`
+                + [NRG=<value>] [NRB=<value>]`Q
+                + [M=<value>] [N=<value>]`".to_string(),
+                snippet,
+            ))    
+        }
+
+        Some('Q') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "  
+                + &node_choices_3 + " ";  
+            Some((
+                "双极结型晶体管:Q<name> <collector node> <base node> <emitter node>".to_string(),
+                snippet,
+            ))    
+        }
+
+        Some('S') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "
+                + &node_choices_3 + " "
+                + &node_choices_3 + " "
+                + "${3:model} ";  
+            Some((
+                "电压控制开关:S<name> <(+) switch node> <(-) switch node>`
+                    <(+) controlling node> <(-) controlling node>`
+                    <model name>`".to_string(),
+                snippet,
+            ))    
+        }
+
+        Some('T') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "
+                + &node_choices_3 + " "
+                + &node_choices_3 + " "
+                + "${3:model} "
+                + " Z0=${7:value}"                     // characteristic impedance
+                + " [TD=${8:value}]"                   // optional TD
+                + " [F=${9:value} [NL=${10:value}]]"   // optional F / NL
+                + " IC=${11:Vnear} ${12:Inear} ${13:Vfar} ${14:Ifar}"; // initial conditions;  
+            Some((
+                "输电线路:T<name> <A port (+) node> <A port (-) node>`
+                     <B port (+) node> <B port (-) node>`
+                     [model name]`
+                     Z0=<value> [TD=<value>] [F=<value> [NL=<value>]]`
+                     IC= <near voltage> <near current> <far voltage> <far current>`".to_string(),
+                snippet,
+            ))    
+        }
+
+        Some('V') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "  
+                + "${3:[dc]} "
+                + "${4:[ac]} "
+                + "${5:[transient]}";  
+            Some((
+                "独立电压源:V<name> <node1> <node2> [<dc>] [<ac>] [<transient>]".to_string(),
+                snippet,
+            ))    
+        }
+
+        Some('W') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "  
+                + " ${4:Vctrl}"              // controlling voltage device name
+                + " ${5:model}";             // model name;  
+            Some((
+                "电流控制开关:W<name> <(+) switch node> <(-) switch node> <controlling V device name> <model name>".to_string(),
+                snippet,
+            ))    
+        }
+
+        // todo 还没写 X
+         Some('X') => {
+            let snippet = node_choices_2.clone() + " "                         
+                + &node_choices_3 + " "  
+                + " ${4:Vctrl}"              // controlling voltage device name
+                + " ${5:model}";             // model name;  
+            Some((
+                "调用子电路:X<name> [node]* <subcircuit name> [PARAM: <<name> = <value>>*]".to_string(),
+                snippet,
+            ))    
+        }
+
+        _ => None,
+    }
+    
+
+}
+
+fn generate_component_completions(str:&str) -> Vec<String>{
+    let mut completions = Vec::new();
+    match str.chars().next() {
+        Some('R') => {
+            completions.push("R1".to_string());
+            completions.push("R2".to_string());
+            completions.push("R3".to_string());
+        }
+        Some('C') => {
+            completions.push("C1".to_string());
+            completions.push("C2".to_string());
+            completions.push("C3".to_string());
+        }
+        Some('L') => {
+            completions.push("L1".to_string());
+            completions.push("L2".to_string());
+            completions.push("L3".to_string());
+        }
+        _ => {
+            completions.push("R".to_string()); // 电阻
+            completions.push("C".to_string()); // 电容
+            completions.push("L".to_string()); // 电感
+            completions.push("V".to_string()); // 电压源
+            completions.push("I".to_string()); // 电流源
+        } 
+        
+    }
+
+    completions
+
+}
+
+
+
+fn generate_completions_from_partial(
+    partial: &ComponentPartial,
+    cursor_pos: usize,
+    symbols: Option<&SymbolTable>,
+) -> Vec<String>{
+    let mut completions = Vec::new();
     match partial {
         ComponentPartial::R(r_partial) => {
             // 根据光标位置确定应该补全什么
@@ -166,27 +495,28 @@ fn generate_completions_from_partial(partial: &ComponentPartial, cursor_pos: usi
                     }
                 }
                 3..=5 => {
-                    // 光标在第一个节点位置
                     if r_partial.node1.is_none() {
-                        completions.push(
-                            "just test,the feature should fetech node from symbol table"
-                                .to_string(),
-                        );
-                        completions.push("1".to_string());
-                        completions.push("IN".to_string());
-                        completions.push("VCC".to_string());
+                        let names: Vec<String> = symbols
+                            .map(|s| s.get_node_names())
+                            .unwrap_or_default();
+                        if names.is_empty() {
+                            completions.extend(["1","IN","VCC"].into_iter().map(String::from));
+                        } else {
+                            completions.extend(names);
+                        }
                     }
                 }
                 6..=8 => {
                     // 光标在第二个节点位置
                     if r_partial.node2.is_none() {
-                        completions.push(
-                            "just test,the feature should fetech node from symbol table"
-                                .to_string(),
-                        );
-                        completions.push("0".to_string());
-                        completions.push("GND".to_string());
-                        completions.push("OUT".to_string());
+                       let names: Vec<String> = symbols
+                           .map(|s| s.get_node_names())
+                           .unwrap_or_default();
+                        if names.is_empty() {
+                            completions.extend(["1","IN","VCC"].into_iter().map(String::from));
+                        } else {
+                            completions.extend(names);
+                        }   
                     }
                 }
                 9.. => {
@@ -213,23 +543,27 @@ fn generate_completions_from_partial(partial: &ComponentPartial, cursor_pos: usi
                 3..=5 => {
                     // 光标在第一个节点位置
                     if c_partial.node1.is_none() {
-                        completions.push(
-                            "just test,the feature should fetech node from symbol table"
-                                .to_string(),
-                        );
-                        completions.push("1".to_string());
-                        completions.push("IN".to_string());
+                       let names: Vec<String> = symbols
+                           .map(|s| s.get_node_names())
+                           .unwrap_or_default();
+                        if names.is_empty() {
+                            completions.extend(["n1","n2","n3"].into_iter().map(String::from));
+                        } else {
+                            completions.extend(names);
+                        }   
                     }
                 }
                 6..=8 => {
                     // 光标在第二个节点位置
                     if c_partial.node2.is_none() {
-                        completions.push(
-                            "just test,the feature should fetech node from symbol table"
-                                .to_string(),
-                        );
-                        completions.push("0".to_string());
-                        completions.push("GND".to_string());
+                       let names: Vec<String> = symbols
+                           .map(|s| s.get_node_names())
+                           .unwrap_or_default();
+                        if names.is_empty() {
+                            completions.extend(["n1","n2","n3"].into_iter().map(String::from));
+                        } else {
+                            completions.extend(names);
+                        }   
                     }
                 }
                 9.. => {
@@ -256,17 +590,27 @@ fn generate_completions_from_partial(partial: &ComponentPartial, cursor_pos: usi
                 3..=5 => {
                     // 光标在第一个节点位置
                     if l_partial.node1.is_none() {
-                        completions.push("1".to_string());
-                        completions.push("2".to_string());
-                        completions.push("IN".to_string());
+                      let names: Vec<String> = symbols
+                          .map(|s| s.get_node_names())
+                          .unwrap_or_default();
+                        if names.is_empty() {
+                            completions.extend(["n1","n2","n3"].into_iter().map(String::from));
+                        } else {
+                            completions.extend(names);
+                        }   
                     }
                 }
                 6..=8 => {
                     // 光标在第二个节点位置
                     if l_partial.node2.is_none() {
-                        completions.push("0".to_string());
-                        completions.push("GND".to_string());
-                        completions.push("OUT".to_string());
+                       let names: Vec<String> = symbols
+                           .map(|s| s.get_node_names())
+                           .unwrap_or_default();
+                        if names.is_empty() {
+                            completions.extend(["n1","n2","n3"].into_iter().map(String::from));
+                        } else {
+                            completions.extend(names);
+                        }   
                     }
                 }
                 9..=12 => {
